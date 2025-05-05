@@ -4,6 +4,7 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import protect from './middleware/authMiddleware.js';
 
+
 dotenv.config();
 const app = express();
 
