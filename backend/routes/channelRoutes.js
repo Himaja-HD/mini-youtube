@@ -4,42 +4,23 @@ import {
   getChannel,
   updateChannel,
   deleteChannel,
-  subscribeChannel,
-  unsubscribeChannel,
+  toggleChannelSubscription
 } from "../controllers/channelController.js";
-import protect from "../middleware/authMiddleware.js";
-import upload from "../middleware/multerMiddleware.js"; 
+import upload from "../middleware/multerMiddleware.js";
+import verifyJWT from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-// @route   POST /api/channels
-// @desc    Create new channel (with banner image)
-// @access  Private
-router.post("/", protect, upload.single("channelBanner"), createChannel);
+// Channel 
+router.post("/", verifyJWT, upload.single("banner"), createChannel);
+router.put("/", verifyJWT, upload.single("banner"), updateChannel);
+router.delete("/", verifyJWT, deleteChannel);
 
-// @route   GET /api/channels/:channelId
-// @desc    Get a single channel by channelId
-// @access  Public
+
 router.get("/:channelId", getChannel);
 
-// @route   PUT /api/channels
-// @desc    Update current user's channel
-// @access  Private
-router.put("/:channelId", protect, upload.single("channelBanner"), updateChannel);
+// Subscriptions 
+router.post("/:channelId/subscribe", verifyJWT, toggleChannelSubscription);
 
-// @route   DELETE /api/channels
-// @desc    Delete current user's channel
-// @access  Private
-router.delete("/:channelId", protect, deleteChannel);
-
-// @route   POST /api/channels/:channelId/subscribe
-// @desc    Subscribe to a channel
-// @access  Private
-router.post("/:channelId/subscribe", protect, subscribeChannel);
-
-// @route   POST /api/channels/:channelId/unsubscribe
-// @desc    Unsubscribe from a channel
-// @access  Private
-router.post("/:channelId/unsubscribe", protect, unsubscribeChannel);
 
 export default router;

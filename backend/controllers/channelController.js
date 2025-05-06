@@ -1,36 +1,25 @@
 import axios from "axios";
-import {Channel} from "../models/channelModel.js";
-import {Subscription} from "../models/subscriptionModel.js";
+import { Channel } from "../models/channelModel.js";
+import Subscription from "../models/subscriptionModel.js";
 import imageKit from "../config/imageKit.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
-import generateID  from "../utils/generateID.js";
+import generateID from "../utils/generateID.js";
 
-// Create a new channel
+// Create channel
 export const createChannel = asyncHandler(async (req, res) => {
   const user = req.user;
-
-  if (await Channel.findOne({ owner: user._id })) {
-    throw new ApiError(400, "User already has a channel");
-  }
+  if (await Channel.findOne({ owner: user._id })) throw new ApiError(400, "Channel exists");
 
   const uid = generateID(user._id.toString());
-
-  let bannerUrl = "";
-  if (req.file) {
-    const uploaded = await imageKit.upload({
-      file: req.file.buffer,
-      fileName: req.file.originalname,
-    });
-    bannerUrl = uploaded.url;
-  }
+  const banner = req.file
+    ? (await imageKit.upload({ file: req.file.buffer, fileName: req.file.originalname })).url
+    : "";
 
   const { data } = await axios.post(
     `https://video.bunnycdn.com/library/${process.env.BUNNY_LIBRARY_ID}/collections`,
     { name: uid },
-    {
-      headers: { AccessKey: process.env.BUNNY_API_KEY },
-    }
+    { headers: { AccessKey: process.env.BUNNY_API_KEY } }
   );
 
   const channel = await Channel.create({
@@ -38,34 +27,27 @@ export const createChannel = asyncHandler(async (req, res) => {
     channelName: req.body.channelName,
     description: req.body.description,
     owner: user._id,
-    channelBanner: bannerUrl,
+    channelBanner: banner,
     collectionId: data.guid,
   });
 
   res.status(201).json({ success: true, message: "Channel created", channel });
 });
 
-// Get channel by channelId
+// Get channel by ID
 export const getChannel = asyncHandler(async (req, res) => {
   const channel = await Channel.findOne({ channelId: req.params.channelId }).populate("owner", "username email");
-
   if (!channel) throw new ApiError(404, "Channel not found");
-
   res.status(200).json({ success: true, channel });
 });
 
 // Update channel
 export const updateChannel = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const channel = await Channel.findOne({ owner: user._id });
-
+  const channel = await Channel.findOne({ owner: req.user._id });
   if (!channel) throw new ApiError(404, "Channel not found");
 
   if (req.file) {
-    const uploaded = await imageKit.upload({
-      file: req.file.buffer,
-      fileName: req.file.originalname,
-    });
+    const uploaded = await imageKit.upload({ file: req.file.buffer, fileName: req.file.originalname });
     channel.channelBanner = uploaded.url;
   }
 
@@ -78,45 +60,29 @@ export const updateChannel = asyncHandler(async (req, res) => {
 
 // Delete channel
 export const deleteChannel = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const channel = await Channel.findOneAndDelete({ owner: user._id });
-
+  const channel = await Channel.findOneAndDelete({ owner: req.user._id });
   if (!channel) throw new ApiError(404, "Channel not found");
-
   await Subscription.deleteMany({ channel: channel._id });
-
   res.status(200).json({ success: true, message: "Channel deleted" });
 });
 
-// Subscribe to a channel
-export const subscribeChannel = asyncHandler(async (req, res) => {
+// Toggle subscribe/unsubscribe
+export const toggleChannelSubscription = asyncHandler(async (req, res) => {
   const user = req.user;
   const channel = await Channel.findOne({ channelId: req.params.channelId });
-
   if (!channel) throw new ApiError(404, "Channel not found");
 
   const existing = await Subscription.findOne({ subscriber: user._id, channel: channel._id });
-  if (existing) throw new ApiError(400, "Already subscribed");
+  if (existing) {
+    await Subscription.deleteOne({ _id: existing._id });
+    channel.subscribers.pull(user._id);
+    await channel.save();
+    return res.status(200).json({ success: true, message: "Unsubscribed" });
+  }
 
-  const subscription = await Subscription.create({ subscriber: user._id, channel: channel._id });
+  await Subscription.create({ subscriber: user._id, channel: channel._id });
   channel.subscribers.push(user._id);
   await channel.save();
 
-  res.status(200).json({ success: true, message: "Subscribed", subscription });
-});
-
-// Unsubscribe from a channel
-export const unsubscribeChannel = asyncHandler(async (req, res) => {
-  const user = req.user;
-  const channel = await Channel.findOne({ channelId: req.params.channelId });
-
-  if (!channel) throw new ApiError(404, "Channel not found");
-
-  const subscription = await Subscription.findOneAndDelete({ subscriber: user._id, channel: channel._id });
-  if (!subscription) throw new ApiError(400, "Not subscribed");
-
-  channel.subscribers.pull(user._id);
-  await channel.save();
-
-  res.status(200).json({ success: true, message: "Unsubscribed" });
+  res.status(200).json({ success: true, message: "Subscribed" });
 });

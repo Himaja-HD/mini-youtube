@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
 import ApiError from '../utils/ApiError.js';
 
-const protect = async (req, res, next) => {
+const verifyJWT = async (req, res, next) => {
   try {
     // 1. Passport (session-based) authentication
     if (req.isAuthenticated && req.isAuthenticated()) {
@@ -32,4 +32,4 @@ const protect = async (req, res, next) => {
   }
 };
 
-export default protect;
+export default verifyJWT;

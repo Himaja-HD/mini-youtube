@@ -10,18 +10,20 @@ const generateToken = (userId) => {
   });
 };
 
-// Register/Signup  with Email/Password
 export const registerUser = async (req, res) => {
   const { username, email, password } = req.body;
   try {
     const userExists = await User.findOne({ email });
-    if (userExists) return res.status(400).json({ message: 'User already exists' });
+    if (userExists)
+      return res.status(400).json({ message: 'User already exists' });
 
     const user = await User.create({ username, email, password });
+
     res.status(201).json({
       _id: user._id,
       username: user.username,
       email: user.email,
+      avatar: user.avatar,
       token: generateToken(user._id),
     });
   } catch (err) {
@@ -29,7 +31,7 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// Login with Email/Password
+
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -42,6 +44,7 @@ export const loginUser = async (req, res) => {
       _id: user._id,
       username: user.username,
       email: user.email,
+      avatar: user.avatar,
       token: generateToken(user._id),
     });
   } catch (err) {
@@ -49,7 +52,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// Login with Google OAuth
+
 export const googleLogin = async (req, res) => {
   const { tokenId } = req.body;
 
@@ -67,6 +70,7 @@ export const googleLogin = async (req, res) => {
       user = await User.create({
         username: name,
         email,
+        avatar: picture,
         password: 'google_oauth_no_password', 
       });
     }
@@ -75,7 +79,8 @@ export const googleLogin = async (req, res) => {
       _id: user._id,
       username: user.username,
       email: user.email,
-      token: generateToken(user._id), 
+      avatar: user.avatar,
+      token: generateToken(user._id),
     });
   } catch (err) {
     console.error('Google login error:', err);
