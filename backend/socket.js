@@ -1,4 +1,4 @@
-import { WebSocketServer } from 'ws';  
+import { WebSocketServer } from 'ws';
 
 export const setupWebSocket = (server) => {
   const wss = new WebSocketServer({ server });
@@ -7,7 +7,7 @@ export const setupWebSocket = (server) => {
     console.log('New WebSocket connection');
 
     ws.on('message', (message) => {
-      console.log('Received message:', message);
+      console.log('Received message:', message.toString());
     });
 
     ws.on('close', () => {

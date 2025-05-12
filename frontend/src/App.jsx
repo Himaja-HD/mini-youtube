@@ -1,28 +1,35 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './pages/HomePage';
-import Nav from './layout/Nav';
+import { Routes, Route } from 'react-router-dom'; 
+import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import ProfilePage from './pages/ProfilePage';
+import Nav from './layout/Nav';
+import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
+import { ToastContainer } from 'react-toastify';
 
-const App = () => (
-  <Router>
-    <div className="flex">
-      <div className="flex-1 mt-14">
-        <Nav />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-        </Routes>
-        <ToastContainer position="top-right"  autoClose={3000}  hideProgressBar={false}
-          newestOnTop={true} closeOnClick  pauseOnHover draggable theme="light"  />
-      </div>
-    </div>
-  </Router>
-);
+
+function App() {
+  return (
+    <>
+      <ToastContainer /> 
+      <Nav />
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route 
+          path="/profile" 
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } 
+        />
+      </Routes>
+    </>
+  );
+}
 
 export default App;

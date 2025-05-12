@@ -1,63 +1,84 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { register, login } from './authThunks';
+import { loginThunk, registerThunk } from './authThunks';
+
+let parsedUser = null;
+const storedUser = localStorage.getItem('user');
+try {
+  if (storedUser && storedUser !== 'undefined') {
+    parsedUser = JSON.parse(storedUser);
+  }
+} catch (error) {
+  console.error('Failed to parse user from localStorage:', error);
+  parsedUser = null;
+}
 
 const initialState = {
-  user: null, 
-  token: null, 
-  isLoggedIn: false, 
-  loading: false, 
-  error: null, 
+  user: parsedUser,              
+  token: localStorage.getItem('token') || null,
+  loading: false,
+  error: null,
 };
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout: (state) => {
+    logout(state) {
       state.user = null;
       state.token = null;
-      state.isLoggedIn = false;
+      state.error = null;
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    },
+    setCredentials(state, action) {
+      const { user, token } = action.payload;
+      state.user = user;
+      state.token = token;
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
     },
   },
   extraReducers: (builder) => {
     builder
-      // Handling login cases
-      .addCase(login.pending, (state) => {
+      .addCase(loginThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(loginThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.isLoggedIn = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        localStorage.setItem('token', action.payload.token); // Store token in localStorage
+        localStorage.setItem('token', action.payload.token);
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(loginThunk.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload || 'Login failed';
       })
-      
-      // Handling register cases
-      .addCase(register.pending, (state) => {
+      .addCase(registerThunk.pending, (state) => {
         state.loading = true;
         state.error = null;
       })
-      .addCase(register.fulfilled, (state, action) => {
+      .addCase(registerThunk.fulfilled, (state, action) => {
         state.loading = false;
-        state.isLoggedIn = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
-        localStorage.setItem('token', action.payload.token); // Store token in localStorage
+        localStorage.setItem('token', action.payload.token);
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
       })
-      .addCase(register.rejected, (state, action) => {
+      .addCase(registerThunk.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload;
+        state.error = action.payload || 'Registration failed';
       });
   },
 });
 
-export const { logout } = authSlice.actions;
+export const { logout, setCredentials } = authSlice.actions;
+
+// Selectors
+export const checkAuthStatus = state => Boolean(state.auth.user);
+export const selectCurrentUser = state => state.auth.user;
+export const selectAuthLoading = state => state.auth.loading;
+export const selectAuthError = state => state.auth.error;
 
 export default authSlice.reducer;
