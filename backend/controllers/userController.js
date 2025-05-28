@@ -11,19 +11,19 @@ const generateToken = (user) => {
   );
 };
 
-// @desc    Register new user
-// @route   POST /api/users/register
-// @access  Public
+// Register new user
 export const registerUser = async (req, res) => {
   const { username, email, password } = req.body;
 
   try {
+    // Check if email or username already exists
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
       return res.status(400).json({ message: 'User with this email or username already exists' });
     }
 
-    const newUser = new User({ username, email, password }); // password hashed in schema
+    // Create new user (password hashed in schema)
+    const newUser = new User({ username, email, password });
     await newUser.save();
 
     res.status(201).json({ message: 'User registered successfully' });
@@ -33,20 +33,22 @@ export const registerUser = async (req, res) => {
   }
 };
 
-// @desc    Login user
-// @route   POST /api/users/login
-// @access  Public
+// Login user and issue JWT
 export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
+    // Find user by email
     const user = await User.findOne({ email });
+    // Check password validity
     if (!user || !(await user.matchPassword(password))) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
+    // Generate token
     const token = generateToken(user);
 
+    // Send token and user info
     res.status(200).json({
       token,
       user: {
@@ -63,19 +65,16 @@ export const loginUser = async (req, res) => {
   }
 };
 
-// @desc    Logout
-// @route   POST /api/users/logout
-// @access  Public
+// Logout user 
 export const logoutUser = (req, res) => {
   res.status(200).json({ message: 'Logged out successfully' });
 };
 
-// @desc    Get profile
-// @route   GET /api/users/profile
-// @access  Private
+// Get logged-in user's profile
 export const getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password'); // ✅ using req.user._id
+    // Find user by ID, exclude password
+    const user = await User.findById(req.user._id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.status(200).json(user);
   } catch (error) {
@@ -84,18 +83,18 @@ export const getUserProfile = async (req, res) => {
   }
 };
 
-// @desc    Update profile
-// @route   PUT /api/users/profile
-// @access  Private
+// Update logged-in user's profile
 export const updateUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id); // ✅ using req.user._id
+    const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
+    // Update fields if provided
     user.username = req.body.username || user.username;
     user.email = req.body.email || user.email;
     if (req.body.password) user.password = req.body.password;
 
+    // Save updated user
     const updatedUser = await user.save();
 
     res.status(200).json({

@@ -50,7 +50,7 @@ export const getAllVideos = async (req, res) => {
   }
 };
 
-// Get single video by ID (with channel and comment user info)
+// Get single video by ID (with channel and comments)
 export const getVideo = async (req, res) => {
   try {
     const { id } = req.params;
@@ -70,7 +70,7 @@ export const getVideo = async (req, res) => {
       return res.status(404).json({ message: 'Video not found' });
     }
 
-    video.views += 1;
+    video.views += 1;       // Increment views count
     await video.save();
 
     res.status(200).json(video);
@@ -79,7 +79,7 @@ export const getVideo = async (req, res) => {
   }
 };
 
-// Update video (only owner)
+// Update video (owner only)
 export const updateVideo = async (req, res) => {
   try {
     const { id } = req.params;
@@ -111,7 +111,7 @@ export const updateVideo = async (req, res) => {
   }
 };
 
-// Delete video and remove from channel (only owner)
+// Delete video (owner only)
 export const deleteVideo = async (req, res) => {
   try {
     const { id } = req.params;
@@ -160,11 +160,11 @@ export const likeVideo = async (req, res) => {
     const unlikedIndex = video.unlikes.indexOf(userId);
 
     if (likedIndex !== -1) {
-      video.likes.splice(likedIndex, 1);
+      video.likes.splice(likedIndex, 1); // Remove like
     } else {
-      video.likes.push(userId);
+      video.likes.push(userId);          // Add like
       if (unlikedIndex !== -1) {
-        video.unlikes.splice(unlikedIndex, 1);
+        video.unlikes.splice(unlikedIndex, 1); // Remove unlike if exists
       }
     }
 
@@ -198,11 +198,11 @@ export const unlikeVideo = async (req, res) => {
     const unlikedIndex = video.unlikes.indexOf(userId);
 
     if (unlikedIndex !== -1) {
-      video.unlikes.splice(unlikedIndex, 1);
+      video.unlikes.splice(unlikedIndex, 1); // Remove unlike
     } else {
-      video.unlikes.push(userId);
+      video.unlikes.push(userId);             // Add unlike
       if (likedIndex !== -1) {
-        video.likes.splice(likedIndex, 1);
+        video.likes.splice(likedIndex, 1);   // Remove like if exists
       }
     }
 
@@ -217,7 +217,7 @@ export const unlikeVideo = async (req, res) => {
   }
 };
 
-// Search videos by query
+// Search videos by title or description
 export const searchVideos = async (req, res) => {
   try {
     const { q } = req.query;
