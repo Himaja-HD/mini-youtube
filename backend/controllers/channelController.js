@@ -1,82 +1,113 @@
-import Channel from "../models/channelModel.js";
-import User from "../models/userModel.js";
-import Video from "../models/videoModel.js";
+import Channel from '../models/channelModel.js';
+import User from '../models/userModel.js';
 import asyncHandler from '../middlewares/asyncHandler.js';
 
 // Validate URL format
-function isValidUrl(string) {
+const isValidUrl = (url) => {
   try {
-    new URL(string);
+    new URL(url);
     return true;
   } catch {
     return false;
   }
-}
+};
 
-// Create a new channel for logged-in user
+// Create a new channel (only one channel per user)
 export const createChannel = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { name, description, handle, banner, avatar } = req.body;
 
-  if (banner && !isValidUrl(banner)) return res.status(400).json({ message: 'Invalid banner URL' });
-  if (avatar && !isValidUrl(avatar)) return res.status(400).json({ message: 'Invalid avatar URL' });
+  if (banner && !isValidUrl(banner)) {
+    return res.status(400).json({ message: 'Invalid banner URL' });
+  }
+  if (avatar && !isValidUrl(avatar)) {
+    return res.status(400).json({ message: 'Invalid avatar URL' });
+  }
 
   const user = await User.findById(userId);
   if (!user) return res.status(401).json({ message: 'User not found' });
 
   const existingChannel = await Channel.findOne({ user: userId });
-  if (existingChannel) return res.status(400).json({ message: 'User already has a channel' });
+  if (existingChannel) {
+    return res.status(400).json({ message: 'User already has a channel' });
+  }
 
-  const handleExists = await Channel.findOne({ handle });
-  if (handleExists) return res.status(400).json({ message: 'Handle is already taken' });
+  const handleExists = await Channel.findOne({ handle: handle.toLowerCase() });
+  if (handleExists) {
+    return res.status(400).json({ message: 'Handle is already taken' });
+  }
 
-  const channel = new Channel({ user: userId, name, description, handle, banner, avatar });
+  const channel = new Channel({
+    user: userId,
+    name,
+    description,
+    handle: handle.toLowerCase(),
+    banner,
+    avatar,
+  });
+
   await channel.save();
 
+  // Link channel to user
   user.channel = channel._id;
   await user.save();
 
   res.status(201).json({ message: 'Channel created successfully', channel });
 });
 
-// Get logged-in user's channel with user and videos info
+// Get logged-in user's channel
 export const getMyChannel = asyncHandler(async (req, res) => {
   const userId = req.user._id;
+
   const channel = await Channel.findOne({ user: userId })
     .populate('user', 'username email')
-    .populate('videos', 'name description handle banner avatar');
+    .populate('videos', 'name description thumbnailUrl privacy views createdAt');
 
   if (!channel) return res.status(404).json({ message: 'Channel not found' });
+
   res.status(200).json(channel);
 });
 
-// Get all channels except logged-in user's
+// Get all channels excluding the logged-in user
 export const getAllOtherChannels = asyncHandler(async (req, res) => {
   const userId = req.user?._id;
   const filter = userId ? { user: { $ne: userId } } : {};
-  const channels = await Channel.find(filter).populate('videos', 'name description handle banner avatar');
+
+  const channels = await Channel.find(filter)
+    .populate('videos', 'name description thumbnailUrl privacy views createdAt');
 
   res.status(200).json(channels);
 });
 
-// Update channel if owned by logged-in user
+// Update a channel by ID (only by owner)
 export const updateChannel = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
   const userId = req.user._id;
   const updates = req.body;
 
-  if (updates.banner && !isValidUrl(updates.banner)) return res.status(400).json({ message: 'Invalid banner URL' });
-  if (updates.avatar && !isValidUrl(updates.avatar)) return res.status(400).json({ message: 'Invalid avatar URL' });
-
+  if (updates.banner && !isValidUrl(updates.banner)) {
+    return res.status(400).json({ message: 'Invalid banner URL' });
+  }
+  if (updates.avatar && !isValidUrl(updates.avatar)) {
+    return res.status(400).json({ message: 'Invalid avatar URL' });
+  }
   if (updates.handle) {
-    const handleExists = await Channel.findOne({ handle: updates.handle, _id: { $ne: channelId } });
-    if (handleExists) return res.status(400).json({ message: 'Handle is already taken' });
+    const handleExists = await Channel.findOne({ 
+      handle: updates.handle.toLowerCase(), 
+      _id: { $ne: channelId } 
+    });
+    if (handleExists) {
+      return res.status(400).json({ message: 'Handle is already taken' });
+    }
+    updates.handle = updates.handle.toLowerCase();
   }
 
   const channel = await Channel.findById(channelId);
   if (!channel) return res.status(404).json({ message: 'Channel not found' });
 
-  if (!channel.user.equals(userId)) return res.status(403).json({ message: 'Unauthorized: Not your channel' });
+  if (!channel.user.equals(userId)) {
+    return res.status(403).json({ message: 'Unauthorized: Not your channel' });
+  }
 
   Object.assign(channel, updates);
   await channel.save();
@@ -84,7 +115,7 @@ export const updateChannel = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Channel updated', channel });
 });
 
-// Delete channel if owned by logged-in user
+// Delete a channel by ID (only by owner)
 export const deleteChannel = asyncHandler(async (req, res) => {
   const { channelId } = req.params;
   const userId = req.user._id;
@@ -92,15 +123,18 @@ export const deleteChannel = asyncHandler(async (req, res) => {
   const channel = await Channel.findById(channelId);
   if (!channel) return res.status(404).json({ message: 'Channel not found' });
 
-  if (!channel.user.equals(userId)) return res.status(403).json({ message: 'Unauthorized: Not your channel' });
+  if (!channel.user.equals(userId)) {
+    return res.status(403).json({ message: 'Unauthorized: Not your channel' });
+  }
 
   await Channel.findByIdAndDelete(channelId);
+
   await User.findByIdAndUpdate(userId, { channel: null });
 
   res.status(200).json({ message: 'Channel deleted successfully' });
 });
 
-// Subscribe logged-in user to a channel
+// Subscribe to a channel
 export const subscribeToChannel = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { channelId } = req.params;
@@ -108,16 +142,25 @@ export const subscribeToChannel = asyncHandler(async (req, res) => {
   const channel = await Channel.findById(channelId);
   if (!channel) return res.status(404).json({ message: 'Channel not found' });
 
-  if (channel.subscribers.includes(userId)) return res.status(400).json({ message: 'Already subscribed' });
+  if (channel.subscribers.includes(userId)) {
+    return res.status(400).json({ message: 'Already subscribed' });
+  }
 
   channel.subscribers.push(userId);
   channel.subscribersCount = channel.subscribers.length;
   await channel.save();
 
+  const user = await User.findById(userId);
+  if (!user.subscribedChannels) user.subscribedChannels = [];
+  if (!user.subscribedChannels.includes(channelId)) {
+    user.subscribedChannels.push(channelId);
+    await user.save();
+  }
+
   res.status(200).json({ message: 'Subscribed successfully' });
 });
 
-// Unsubscribe logged-in user from a channel
+// Unsubscribe from a channel
 export const unsubscribeFromChannel = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { channelId } = req.params;
@@ -125,26 +168,70 @@ export const unsubscribeFromChannel = asyncHandler(async (req, res) => {
   const channel = await Channel.findById(channelId);
   if (!channel) return res.status(404).json({ message: 'Channel not found' });
 
-  if (!channel.subscribers.includes(userId)) return res.status(400).json({ message: 'Not subscribed to this channel' });
+  if (!channel.subscribers.includes(userId)) {
+    return res.status(400).json({ message: 'Not subscribed to this channel' });
+  }
 
-  channel.subscribers = channel.subscribers.filter(id => id.toString() !== userId.toString());
+  channel.subscribers = channel.subscribers.filter(
+    (id) => id.toString() !== userId.toString()
+  );
   channel.subscribersCount = channel.subscribers.length;
   await channel.save();
+
+  await User.findByIdAndUpdate(userId, {
+    $pull: { subscribedChannels: channelId },
+  });
 
   res.status(200).json({ message: 'Unsubscribed successfully' });
 });
 
-// Check if logged-in user is subscribed to channel
-export const isSubscribedToChannel = async (req, res) => {
-  try {
-    const { channelId } = req.params;
-    const channel = await Channel.findById(channelId);
-    if (!channel) return res.status(404).json({ message: 'Channel not found' });
+// Check subscription status of user to a channel
+export const isSubscribedToChannel = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { channelId } = req.params;
 
-    const isSubscribed = channel.subscribers.includes(req.user._id);
-    res.status(200).json({ isSubscribed });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error checking subscription status' });
-  }
-};
+  const channel = await Channel.findById(channelId);
+  if (!channel) return res.status(404).json({ message: 'Channel not found' });
+
+  const isSubscribed = channel.subscribers.includes(userId);
+  res.status(200).json({ isSubscribed });
+});
+
+// Get channel by handle
+export const getChannelByHandle = asyncHandler(async (req, res) => {
+  const { handle } = req.params;
+
+  const channel = await Channel.findOne({ handle: handle.toLowerCase() })
+    .populate('user', 'username email')
+    .populate('videos', 'name description thumbnailUrl privacy views createdAt');
+
+  if (!channel) return res.status(404).json({ message: 'Channel not found' });
+
+  res.status(200).json(channel);
+});
+
+// Get channel by ID
+export const getChannelById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const channel = await Channel.findById(id)
+    .populate('user', 'username email')
+    .populate('videos', 'name description thumbnailUrl privacy views createdAt');
+
+  if (!channel) return res.status(404).json({ message: 'Channel not found' });
+
+  res.status(200).json(channel);
+});
+
+// Get channel by User ID
+export const getChannelByUserId = asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  const channel = await Channel.findOne({ user: userId })
+    .populate('user', 'username email')
+    .populate('videos', 'name description thumbnailUrl privacy views createdAt');
+
+  if (!channel) return res.status(404).json({ message: 'Channel not found' });
+
+  res.status(200).json(channel);
+});

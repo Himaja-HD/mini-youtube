@@ -45,7 +45,7 @@ export default function ChannelMenuButton({ setDropdownOpen }) {
       onClick={handleClick} // Click
       className="block w-full px-4 py-2 text-left hover:bg-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {userHasChannel ? 'View Your Channel' : 'Create Channel'} // Label
+      {userHasChannel ? 'View Your Channel' : 'Create Channel'} 
     </button>
   );
 }

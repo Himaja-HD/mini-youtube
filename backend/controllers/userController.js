@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/userModel.js';
+import Channel from '../models/channelModel.js';
 import { JWT_SECRET, JWT_EXPIRES_IN } from '../config/auth.js';
 
 // Generate JWT token
@@ -22,7 +23,7 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: 'User with this email or username already exists' });
     }
 
-    // Create new user (password hashed in schema)
+    // Create new user
     const newUser = new User({ username, email, password });
     await newUser.save();
 
@@ -38,17 +39,14 @@ export const loginUser = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Find user by email
-    const user = await User.findOne({ email });
-    // Check password validity
+    const user = await User.findOne({ email }).select('+password');
     if (!user || !(await user.matchPassword(password))) {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
-    // Generate token
     const token = generateToken(user);
+    const channel = await Channel.findOne({ owner: user._id });
 
-    // Send token and user info
     res.status(200).json({
       token,
       user: {
@@ -57,6 +55,8 @@ export const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
         avatar: user.avatar,
+        hasChannel: !!channel,
+        channelHandle: channel?.handle || null,
       },
     });
   } catch (error) {
@@ -73,7 +73,6 @@ export const logoutUser = (req, res) => {
 // Get logged-in user's profile
 export const getUserProfile = async (req, res) => {
   try {
-    // Find user by ID, exclude password
     const user = await User.findById(req.user._id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.status(200).json(user);
@@ -89,12 +88,10 @@ export const updateUserProfile = async (req, res) => {
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Update fields if provided
     user.username = req.body.username || user.username;
     user.email = req.body.email || user.email;
     if (req.body.password) user.password = req.body.password;
 
-    // Save updated user
     const updatedUser = await user.save();
 
     res.status(200).json({

@@ -3,8 +3,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { fetchChannelByUser } from './features/channel/channelThunks';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-
 import { Routes, Route } from 'react-router-dom';
+
 import Login from './pages/LoginPage';
 import Register from './pages/RegisterPage';
 import Home from './pages/HomePage';
@@ -20,32 +20,32 @@ import ProtectedRoute from './components/ProtectedRoute';
 import UploadPage from "./components/UploadPage";
 
 function App() {
-  const dispatch = useDispatch(); // dispatch
-  const user = useSelector((state) => state.auth.user); // user
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
 
   useEffect(() => {
     if (user?._id) {
-      dispatch(fetchChannelByUser()); // fetch channel
+      dispatch(fetchChannelByUser());
     }
-  }, [dispatch, user?._id]); // deps
+  }, [dispatch, user?._id]);
 
   return (
-    <div className="text-black min-h-screen"> {/* container */}
-      <ToastContainer position="top-right" autoClose={3000} closeOnClick pauseOnHover /> {/* toast */}
-      <Header /> {/* header */}
-      <Nav /> {/* nav */}
+    <div className="text-black min-h-screen">
+      <ToastContainer position="top-right" autoClose={3000} closeOnClick pauseOnHover />
+      <Header />
+      <Nav />
 
-      <Routes> {/* routes */}
-        <Route path="/" element={<Home />} /> {/* home */}
-        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} /> {/* profile */}
-        <Route path="/channel/:id" element={<ChannelPage />} /> {/* channel */}
-        <Route path="/create-channel" element={<ProtectedRoute><CreateChannelPage /></ProtectedRoute>} /> {/* create channel */}
-        <Route path="/channels/me" element={<ProtectedRoute><MyChannelPage /></ProtectedRoute>} /> {/* my channel */}
-        <Route path="/login" element={<Login />} /> {/* login */}
-        <Route path="/register" element={<Register />} /> {/* register */}
-        <Route path="/search/:query" element={<SearchPage />} /> {/* search */}
-        <Route path="/videos/:id" element={<VideoPage />} /> {/* video */}
-        <Route path="/upload" element={<UploadPage />} /> {/* upload */}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/channel/:id" element={<ChannelPage />} />
+        <Route path="/channels/me" element={<ProtectedRoute><MyChannelPage /></ProtectedRoute>} />
+        <Route path="/create-channel" element={<ProtectedRoute><CreateChannelPage /></ProtectedRoute>} />
+        <Route path="/search/:query" element={<SearchPage />} />
+        <Route path="/videos/:id" element={<VideoPage />} />
+        <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
       </Routes>
     </div>
   );
